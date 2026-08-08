@@ -666,7 +666,10 @@ video-player * { box-sizing: border-box; }
       // releasing outside it, still work correctly.
       this._seekFromEvent = (e) => {
         const rect = this._progressRow.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let clientX;
+        if (e.changedTouches && e.changedTouches.length) clientX = e.changedTouches[0].clientX;
+        else if (e.touches && e.touches.length) clientX = e.touches[0].clientX;
+        else clientX = e.clientX;
         const x = clientX - rect.left;
         return Math.min(1, Math.max(0, rect.width ? x / rect.width : 0));
       };
@@ -701,7 +704,10 @@ video-player * { box-sizing: border-box; }
       });
       this._applyVol = (e) => {
         const rect = this._volTrack.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let clientX;
+        if (e.changedTouches && e.changedTouches.length) clientX = e.changedTouches[0].clientX;
+        else if (e.touches && e.touches.length) clientX = e.touches[0].clientX;
+        else clientX = e.clientX;
         const x = clientX - rect.left;
         const ratio = Math.min(1, Math.max(0, rect.width ? x / rect.width : 0));
         v.volume = ratio;
@@ -812,6 +818,11 @@ video-player * { box-sizing: border-box; }
       this.addEventListener('mouseleave', () => {
         if (!this._video.paused) this._scheduleHide(200);
       });
+      // Touch devices never fire mousemove/mouseenter, so without this the
+      // controls (and the label) would stay on screen forever once shown.
+      // A tap anywhere on the player reveals controls and re-arms the
+      // auto-hide timer, same as a mouse move would.
+      this.addEventListener('touchstart', show, { passive: true });
     }
 
     _scheduleHide(delay = 2600) {
