@@ -1,3 +1,4 @@
+// ceci et la nouvelle version
 /*!
  * websim.mp4 — a single-file, dependency-free video player
  * Built to be dropped in as a near-identical replacement for the
@@ -114,30 +115,49 @@ video-skin > video {
   padding: 0;
   margin: 0;
 }
-.ws-big-play {
-  width: 72px;
-  height: 72px;
+.ws-big-play-ring {
+  position: absolute;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
-  background: var(--ws-big-play-bg, rgba(15,15,17,0.65));
-  border: 2px solid var(--ws-big-play-border, rgba(255,255,255,0.9));
-  backdrop-filter: blur(4px);
+  border: 1.5px solid color-mix(in srgb, var(--ws-accent, #e50914) 55%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: ws-pulse 2.6s ease-out infinite;
+}
+video-player[data-playing="true"] .ws-big-play-ring { animation-play-state: paused; opacity: 0; }
+@keyframes ws-pulse {
+  0% { transform: scale(0.78); opacity: 0; }
+  35% { opacity: .55; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+.ws-big-play {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--ws-accent, #e50914) 88%, #000 0%), color-mix(in srgb, var(--ws-accent, #e50914) 55%, #000 30%));
+  border: 1.5px solid rgba(255,255,255,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
-  transition: transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease, border-color .18s ease;
-  pointer-events: none;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ws-accent, #e50914) 45%, transparent), 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.25);
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s ease, filter .18s ease;
 }
 .ws-overlay-btn:hover .ws-big-play {
-  transform: scale(1.1);
-  background: var(--ws-accent, #e50914);
-  border-color: var(--ws-accent, #e50914);
+  transform: scale(1.08);
+  filter: brightness(1.12);
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--ws-accent, #e50914) 60%, transparent), 0 2px 10px rgba(0,0,0,0.55), inset 0 1px 1px rgba(255,255,255,0.3);
+}
+.ws-overlay-btn:active .ws-big-play {
+  transform: scale(0.98);
 }
 .ws-big-play svg {
-  width: 30px;
-  height: 30px;
-  fill: var(--ws-text, #ffffff);
+  width: 32px;
+  height: 32px;
+  fill: #ffffff;
   margin-left: 4px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
 }
 video-player[data-playing="true"] .ws-big-play-wrap {
   opacity: 0;
@@ -147,6 +167,9 @@ video-player[data-playing="true"] .ws-big-play-wrap {
 .ws-big-play-wrap {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: opacity .2s ease, transform .2s ease;
 }
 .ws-spinner {
@@ -373,19 +396,27 @@ video-player[data-controls-hidden="true"] {
   right: 10px;
   bottom: 50px;
   background: var(--ws-menu-bg, rgba(20,20,23,0.97));
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 6px 0;
   min-width: 150px;
-  box-shadow: 0 10px 32px rgba(0,0,0,0.5);
-  display: none;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.55);
+  display: flex;
   flex-direction: column;
   z-index: 5;
   max-height: 220px;
   overflow-y: auto;
+  opacity: 0;
+  transform: translateY(6px) scale(0.97);
+  pointer-events: none;
+  transition: opacity .14s ease, transform .14s cubic-bezier(.2,.9,.3,1.2);
 }
-.ws-menu.ws-open { display: flex; }
+.ws-menu.ws-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
 .ws-menu-item {
   display: flex;
   align-items: center;
@@ -399,6 +430,9 @@ video-player[data-controls-hidden="true"] {
   transition: background .1s ease;
 }
 .ws-menu-item:hover { background: rgba(255,255,255,0.1); }
+.ws-menu-item[data-active="true"] {
+  background: color-mix(in srgb, var(--ws-accent, #e50914) 16%, transparent);
+}
 .ws-menu-item svg { width: 14px; height: 14px; fill: var(--ws-accent, #e50914); visibility: hidden; }
 .ws-menu-item[data-active="true"] svg { visibility: visible; }
 .ws-menu-header {
@@ -538,8 +572,9 @@ video-player * { box-sizing: border-box; }
       const bigBtn = el('button', 'ws-overlay-btn', '');
       bigBtn.setAttribute('aria-label', 'Play');
       bigBtn.tabIndex = -1;
+      const bigRing = el('div', 'ws-big-play-ring');
       const bigCircle = el('div', 'ws-big-play', ICONS.play);
-      bigBtn.appendChild(bigCircle);
+      bigBtn.append(bigRing, bigCircle);
       bigWrap.appendChild(bigBtn);
       this._skin.appendChild(bigWrap);
       this._bigBtn = bigBtn;
