@@ -649,7 +649,7 @@ video-player * { box-sizing: border-box; }
 
       const pipBtn = el('button', 'ws-btn', ICONS.pip);
       pipBtn.setAttribute('aria-label', 'Picture in picture');
-      if (!('pictureInPictureEnabled' in document) || video.disablePictureInPicture) {
+      if (!('pictureInPictureEnabled' in document) || this._video.disablePictureInPicture) {
         pipBtn.style.display = 'none';
       }
 
