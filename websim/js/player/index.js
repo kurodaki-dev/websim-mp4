@@ -1,4 +1,3 @@
-// ceci et la nouvelle version
 /*!
  * websim.mp4 — a single-file, dependency-free video player
  * Built to be dropped in as a near-identical replacement for the
@@ -63,17 +62,25 @@
     style.id = STYLE_ID;
     style.textContent = `
 video-player {
+  --ws-accent: #e50914;
+  --ws-accent-text: #ffffff;
+  --ws-progress-bg: rgba(255,255,255,0.25);
+  --ws-buffered-bg: rgba(255,255,255,0.4);
+  --ws-controls-bg-top: rgba(0,0,0,0.85);
+  --ws-controls-bg-mid: rgba(0,0,0,0.55);
+  --ws-big-play-bg: rgba(20,20,22,0.72);
+  --ws-big-play-border: rgba(255,255,255,0.85);
+  --ws-menu-bg: rgba(24,24,27,0.96);
+  --ws-text: #ffffff;
+
   display: block;
   position: relative;
   width: 100%;
   background: #000;
-  border-radius: 10px;
-  overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1;
   -webkit-user-select: none;
   user-select: none;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.35);
 }
 video-skin {
   display: block;
@@ -82,6 +89,12 @@ video-skin {
   aspect-ratio: 16 / 9;
   background: #000;
   overflow: hidden;
+  border-radius: 6px;
+}
+video-player[data-fullscreen="true"] video-skin {
+  border-radius: 0;
+  aspect-ratio: unset;
+  height: 100%;
 }
 video-player[data-fullscreen="true"] {
   position: fixed;
@@ -89,12 +102,6 @@ video-player[data-fullscreen="true"] {
   z-index: 2147483647;
   width: 100vw;
   height: 100vh;
-  border-radius: 0;
-  box-shadow: none;
-}
-video-player[data-fullscreen="true"] video-skin {
-  aspect-ratio: unset;
-  height: 100%;
 }
 video-skin > video {
   display: block;
@@ -115,62 +122,36 @@ video-skin > video {
   padding: 0;
   margin: 0;
 }
-.ws-big-play-ring {
-  position: absolute;
-  width: 92px;
-  height: 92px;
-  border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, var(--ws-accent, #e50914) 55%, transparent);
-  opacity: 0;
-  pointer-events: none;
-  animation: ws-pulse 2.6s ease-out infinite;
-}
-video-player[data-playing="true"] .ws-big-play-ring { animation-play-state: paused; opacity: 0; }
-@keyframes ws-pulse {
-  0% { transform: scale(0.78); opacity: 0; }
-  35% { opacity: .55; }
-  100% { transform: scale(1.18); opacity: 0; }
-}
 .ws-big-play {
-  position: relative;
-  width: 80px;
-  height: 80px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
-  background: linear-gradient(155deg, color-mix(in srgb, var(--ws-accent, #e50914) 88%, #000 0%), color-mix(in srgb, var(--ws-accent, #e50914) 55%, #000 30%));
-  border: 1.5px solid rgba(255,255,255,0.25);
+  background: var(--ws-big-play-bg);
+  border: 2px solid var(--ws-big-play-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--ws-accent, #e50914) 45%, transparent), 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.25);
-  transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s ease, filter .18s ease;
+  transition: transform .15s ease, background .15s ease;
+  pointer-events: none;
 }
 .ws-overlay-btn:hover .ws-big-play {
   transform: scale(1.08);
-  filter: brightness(1.12);
-  box-shadow: 0 14px 38px color-mix(in srgb, var(--ws-accent, #e50914) 60%, transparent), 0 2px 10px rgba(0,0,0,0.55), inset 0 1px 1px rgba(255,255,255,0.3);
-}
-.ws-overlay-btn:active .ws-big-play {
-  transform: scale(0.98);
+  background: var(--ws-accent);
 }
 .ws-big-play svg {
-  width: 32px;
-  height: 32px;
-  fill: #ffffff;
+  width: 30px;
+  height: 30px;
+  fill: var(--ws-text);
   margin-left: 4px;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
 }
 video-player[data-playing="true"] .ws-big-play-wrap {
   opacity: 0;
-  transform: scale(0.85);
   pointer-events: none;
 }
 .ws-big-play-wrap {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity .2s ease, transform .2s ease;
+  transition: opacity .2s ease;
 }
 .ws-spinner {
   position: absolute;
@@ -186,8 +167,8 @@ video-player[data-waiting="true"] .ws-spinner { display: flex; }
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.2);
-  border-top-color: var(--ws-accent, #e50914);
+  border: 3px solid rgba(255,255,255,0.25);
+  border-top-color: var(--ws-text);
   animation: ws-spin .8s linear infinite;
 }
 @keyframes ws-spin { to { transform: rotate(360deg); } }
@@ -195,8 +176,8 @@ video-player[data-waiting="true"] .ws-spinner { display: flex; }
 .ws-controls {
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  padding: 34px 12px 10px;
-  background: linear-gradient(to top, var(--ws-controls-bg-top, rgba(0,0,0,0.88)) 0%, var(--ws-controls-bg-mid, rgba(0,0,0,0.5)) 50%, rgba(0,0,0,0) 100%);
+  padding: 30px 10px 8px;
+  background: linear-gradient(to top, var(--ws-controls-bg-top) 0%, var(--ws-controls-bg-mid) 45%, rgba(0,0,0,0) 100%);
   opacity: 1;
   transform: translateY(0);
   transition: opacity .25s ease, transform .25s ease;
@@ -204,7 +185,7 @@ video-player[data-waiting="true"] .ws-spinner { display: flex; }
 }
 video-player[data-controls-hidden="true"] .ws-controls {
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateY(4px);
   pointer-events: none;
 }
 video-player[data-controls-hidden="true"] {
@@ -214,7 +195,7 @@ video-player[data-controls-hidden="true"] {
 .ws-progress-row {
   position: relative;
   height: 16px;
-  margin: 0 6px 6px;
+  margin: 0 6px 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -225,37 +206,35 @@ video-player[data-controls-hidden="true"] {
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: var(--ws-progress-bg, rgba(255,255,255,0.25));
+  background: var(--ws-progress-bg);
   transition: height .12s ease;
   pointer-events: none;
 }
 .ws-progress-row:hover .ws-progress-track,
-.ws-progress-row.ws-scrubbing .ws-progress-track { height: 7px; }
+.ws-progress-row.ws-scrubbing .ws-progress-track { height: 6px; }
 .ws-progress-buffered {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 0%;
-  background: var(--ws-buffered-bg, rgba(255,255,255,0.4));
+  background: var(--ws-buffered-bg);
   border-radius: 2px;
 }
 .ws-progress-played {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 0%;
-  background: var(--ws-accent, #e50914);
+  background: var(--ws-accent);
   border-radius: 2px;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--ws-accent, #e50914) 60%, transparent);
 }
 .ws-progress-handle {
   position: absolute;
   top: 50%;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--ws-accent, #e50914);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  background: var(--ws-accent);
   transform: translate(-50%, -50%) scale(0);
-  transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+  transition: transform .12s ease;
   left: 0%;
   pointer-events: none;
 }
@@ -265,57 +244,20 @@ video-player[data-controls-hidden="true"] {
 }
 .ws-progress-tooltip {
   position: absolute;
-  bottom: 20px;
+  bottom: 18px;
   transform: translateX(-50%);
-  background: rgba(15,15,17,0.95);
-  color: var(--ws-text, #ffffff);
+  background: rgba(20,20,22,0.95);
+  color: var(--ws-text);
   font-size: 11px;
-  font-weight: 600;
-  padding: 3px 7px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .12s ease;
+  transition: opacity .1s ease;
 }
 .ws-progress-row:hover .ws-progress-tooltip,
 .ws-progress-row.ws-scrubbing .ws-progress-tooltip { opacity: 1; }
-
-.ws-preview {
-  position: absolute;
-  bottom: 36px;
-  transform: translateX(-50%);
-  width: 160px;
-  aspect-ratio: 16 / 9;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #000;
-  border: 2px solid var(--ws-menu-bg, rgba(24,24,27,0.96));
-  box-shadow: 0 8px 26px rgba(0,0,0,0.55);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .12s ease;
-  z-index: 4;
-}
-.ws-progress-row:hover .ws-preview,
-.ws-progress-row.ws-scrubbing .ws-preview { opacity: 1; }
-.ws-preview canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.ws-preview-time {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  text-align: center;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0));
-  font-variant-numeric: tabular-nums;
-}
 
 .ws-bar {
   display: flex;
@@ -329,32 +271,30 @@ video-player[data-controls-hidden="true"] {
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--ws-text, #ffffff);
+  color: var(--ws-text);
   cursor: pointer;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  opacity: 0.9;
-  transition: opacity .15s ease, background .15s ease, transform .15s ease;
+  border-radius: 4px;
+  opacity: 0.92;
+  transition: opacity .12s ease, background .12s ease;
   flex-shrink: 0;
 }
-.ws-btn:hover { opacity: 1; background: rgba(255,255,255,0.14); transform: translateY(-1px); }
-.ws-btn:active { transform: translateY(0); }
+.ws-btn:hover { opacity: 1; background: rgba(255,255,255,0.12); }
 .ws-btn svg { width: 20px; height: 20px; fill: currentColor; }
 .ws-btn:focus-visible, .ws-progress-row:focus-visible {
-  outline: 2px solid var(--ws-accent, #e50914);
+  outline: 2px solid var(--ws-text);
   outline-offset: 2px;
 }
 
 .ws-time {
-  color: var(--ws-text, #ffffff);
-  font-size: 12.5px;
-  font-weight: 500;
+  color: var(--ws-text);
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
-  padding: 0 8px;
+  padding: 0 6px;
   white-space: nowrap;
   opacity: 0.92;
 }
@@ -366,7 +306,7 @@ video-player[data-controls-hidden="true"] {
 .ws-vol-track-wrap {
   width: 0;
   overflow: hidden;
-  transition: width .18s ease;
+  transition: width .15s ease;
   display: flex;
   align-items: center;
 }
@@ -379,69 +319,54 @@ video-player[data-controls-hidden="true"] {
   width: 56px;
   height: 4px;
   border-radius: 2px;
-  background: var(--ws-progress-bg, rgba(255,255,255,0.25));
-  margin-right: 10px;
+  background: var(--ws-progress-bg);
+  margin-right: 8px;
   cursor: pointer;
 }
 .ws-vol-fill {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 100%;
-  background: var(--ws-accent, #e50914);
+  background: var(--ws-text);
   border-radius: 2px;
 }
 
 .ws-menu {
   position: absolute;
-  right: 10px;
-  bottom: 50px;
-  background: var(--ws-menu-bg, rgba(20,20,23,0.97));
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
+  right: 8px;
+  bottom: 46px;
+  background: var(--ws-menu-bg);
+  border-radius: 6px;
   padding: 6px 0;
   min-width: 150px;
-  box-shadow: 0 14px 36px rgba(0,0,0,0.55);
-  display: flex;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  display: none;
   flex-direction: column;
   z-index: 5;
   max-height: 220px;
   overflow-y: auto;
-  opacity: 0;
-  transform: translateY(6px) scale(0.97);
-  pointer-events: none;
-  transition: opacity .14s ease, transform .14s cubic-bezier(.2,.9,.3,1.2);
 }
-.ws-menu.ws-open {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
-}
+.ws-menu.ws-open { display: flex; }
 .ws-menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 7px 14px;
   color: #eee;
   font-size: 12.5px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background .1s ease;
 }
 .ws-menu-item:hover { background: rgba(255,255,255,0.1); }
-.ws-menu-item[data-active="true"] {
-  background: color-mix(in srgb, var(--ws-accent, #e50914) 16%, transparent);
-}
-.ws-menu-item svg { width: 14px; height: 14px; fill: var(--ws-accent, #e50914); visibility: hidden; }
+.ws-menu-item svg { width: 14px; height: 14px; fill: var(--ws-accent); visibility: hidden; }
 .ws-menu-item[data-active="true"] svg { visibility: visible; }
 .ws-menu-header {
-  padding: 6px 14px 8px;
+  padding: 6px 14px;
   color: rgba(255,255,255,0.5);
   font-size: 10.5px;
-  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: .04em;
 }
 
 video-player * { box-sizing: border-box; }
@@ -538,10 +463,6 @@ video-player * { box-sizing: border-box; }
       window.removeEventListener('mouseup', this._onWinMouseUp);
       document.removeEventListener('click', this._onDocClick);
       this._clearHide();
-      if (this._shadowVideo) {
-        this._shadowVideo.src = '';
-        this._shadowVideo.remove();
-      }
     }
 
     _build() {
@@ -572,9 +493,8 @@ video-player * { box-sizing: border-box; }
       const bigBtn = el('button', 'ws-overlay-btn', '');
       bigBtn.setAttribute('aria-label', 'Play');
       bigBtn.tabIndex = -1;
-      const bigRing = el('div', 'ws-big-play-ring');
       const bigCircle = el('div', 'ws-big-play', ICONS.play);
-      bigBtn.append(bigRing, bigCircle);
+      bigBtn.appendChild(bigCircle);
       bigWrap.appendChild(bigBtn);
       this._skin.appendChild(bigWrap);
       this._bigBtn = bigBtn;
@@ -597,20 +517,12 @@ video-player * { box-sizing: border-box; }
       const handle = el('div', 'ws-progress-handle');
       const tooltip = el('div', 'ws-progress-tooltip', '0:00');
       track.append(buffered, played, handle);
-      const preview = el('div', 'ws-preview');
-      const previewCanvas = document.createElement('canvas');
-      previewCanvas.width = 160;
-      previewCanvas.height = 90;
-      const previewTime = el('div', 'ws-preview-time', '0:00');
-      preview.append(previewCanvas, previewTime);
-      progressRow.append(track, preview, tooltip);
+      progressRow.append(track, tooltip);
       controls.appendChild(progressRow);
       Object.assign(this, {
         _progressRow: progressRow, _buffered: buffered, _played: played,
         _handle: handle, _tooltip: tooltip,
-        _preview: preview, _previewCanvas: previewCanvas, _previewTime: previewTime,
       });
-      this._initPreview();
 
       // button bar
       const bar = el('div', 'ws-bar');
@@ -709,83 +621,6 @@ video-player * { box-sizing: border-box; }
       v.addEventListener('error', () => this.setAttribute('data-waiting', 'false'));
     }
 
-    // ---------------------------------------------------------------
-    // Hover preview thumbnail (YouTube-style).
-    // Uses a second, hidden <video> pointed at the same source, seeked
-    // silently in the background and drawn onto a canvas. No sprite
-    // sheet or server support required — works with any playable src.
-    // ---------------------------------------------------------------
-    _initPreview() {
-      const setup = () => {
-        if (this._shadowVideo) return; // already set up
-        const src = this._video.currentSrc || this._video.src;
-        if (!src) return;
-        const shadow = document.createElement('video');
-        shadow.src = src;
-        shadow.muted = true;
-        shadow.preload = 'auto';
-        shadow.crossOrigin = this._video.crossOrigin || 'anonymous';
-        shadow.style.position = 'absolute';
-        shadow.style.width = '1px';
-        shadow.style.height = '1px';
-        shadow.style.opacity = '0';
-        shadow.style.pointerEvents = 'none';
-        shadow.tabIndex = -1;
-        shadow.setAttribute('aria-hidden', 'true');
-        this._skin.appendChild(shadow);
-        this._shadowVideo = shadow;
-        this._previewReady = false;
-        this._previewSeeking = false;
-        this._previewQueued = null;
-        shadow.addEventListener('loadeddata', () => { this._previewReady = true; });
-        shadow.addEventListener('seeked', () => {
-          this._previewSeeking = false;
-          this._drawPreviewFrame();
-          if (this._previewQueued !== null) {
-            const t = this._previewQueued;
-            this._previewQueued = null;
-            this._seekPreview(t);
-          }
-        });
-        shadow.addEventListener('error', () => { this._previewReady = false; });
-      };
-      if (this._video.currentSrc || this._video.src) setup();
-      else this._video.addEventListener('loadedmetadata', setup, { once: true });
-    }
-
-    _seekPreview(t) {
-      const shadow = this._shadowVideo;
-      if (!shadow || !this._previewReady) return;
-      if (this._previewSeeking) {
-        this._previewQueued = t;
-        return;
-      }
-      const clamped = Math.min(Math.max(t, 0), (shadow.duration || this._video.duration || t) - 0.05);
-      if (Math.abs(shadow.currentTime - clamped) < 0.2) return; // close enough, skip redundant seek
-      this._previewSeeking = true;
-      shadow.currentTime = clamped;
-    }
-
-    _drawPreviewFrame() {
-      const shadow = this._shadowVideo;
-      const canvas = this._previewCanvas;
-      if (!shadow || !canvas) return;
-      const ctx = canvas.getContext('2d');
-      try {
-        ctx.drawImage(shadow, 0, 0, canvas.width, canvas.height);
-      } catch (err) { /* frame not ready / cross-origin without CORS headers — skip silently */ }
-    }
-
-    _updatePreview(ratio) {
-      const v = this._video;
-      if (!v.duration || !this._preview) return;
-      const t = ratio * v.duration;
-      this._previewTime.textContent = fmtTime(t);
-      const clampPx = Math.max(84, Math.min(this._progressRow.clientWidth - 84, ratio * this._progressRow.clientWidth));
-      this._preview.style.left = clampPx + 'px';
-      this._seekPreview(t);
-    }
-
     _bindUIEvents() {
       const v = this._video;
       const toggle = () => (v.paused ? v.play() : v.pause());
@@ -822,14 +657,10 @@ video-player * { box-sizing: border-box; }
         this._handle.style.left = ratio * 100 + '%';
         this._tooltip.style.left = ratio * 100 + '%';
         this._tooltip.textContent = fmtTime(ratio * (v.duration || 0));
-        this._updatePreview(ratio);
       };
       this._progressRow.addEventListener('mousemove', (e) => {
         if (!v.duration || this._scrubbing) return;
-        const ratio = this._seekFromEvent(e);
-        this._tooltip.style.left = ratio * 100 + '%';
-        this._tooltip.textContent = fmtTime(ratio * v.duration);
-        this._updatePreview(ratio);
+        this._applyScrubUI(this._seekFromEvent(e));
         // restore the played bar to the real position after just previewing
         const real = v.currentTime / v.duration;
         this._played.style.width = real * 100 + '%';
