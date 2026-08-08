@@ -173,6 +173,8 @@ video-player[data-waiting="true"] .ws-spinner { display: flex; }
 }
 @keyframes ws-spin { to { transform: rotate(360deg); } }
 
+/* Everything that should fade together while playing: the control bar
+   AND the websim.mp4 label share the same visibility state. */
 .ws-controls {
   position: absolute;
   left: 0; right: 0; bottom: 0;
@@ -183,7 +185,22 @@ video-player[data-waiting="true"] .ws-spinner { display: flex; }
   transition: opacity .25s ease, transform .25s ease;
   z-index: 3;
 }
-video-player[data-controls-hidden="true"] .ws-controls {
+.ws-label {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: rgba(255,255,255,0.9);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity .25s ease, transform .25s ease;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+video-player[data-controls-hidden="true"] .ws-controls,
+video-player[data-controls-hidden="true"] .ws-label {
   opacity: 0;
   transform: translateY(4px);
   pointer-events: none;
@@ -258,6 +275,41 @@ video-player[data-controls-hidden="true"] {
 }
 .ws-progress-row:hover .ws-progress-tooltip,
 .ws-progress-row.ws-scrubbing .ws-progress-tooltip { opacity: 1; }
+
+.ws-preview {
+  position: absolute;
+  bottom: 34px;
+  transform: translateX(-50%);
+  width: 160px;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+  border: 2px solid var(--ws-menu-bg);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+  z-index: 4;
+}
+.ws-progress-row:hover .ws-preview,
+.ws-progress-row.ws-scrubbing .ws-preview { opacity: 1; }
+.ws-preview canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ws-preview-time {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  text-align: center;
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0));
+  font-variant-numeric: tabular-nums;
+}
 
 .ws-bar {
   display: flex;
@@ -463,6 +515,10 @@ video-player * { box-sizing: border-box; }
       window.removeEventListener('mouseup', this._onWinMouseUp);
       document.removeEventListener('click', this._onDocClick);
       this._clearHide();
+      if (this._shadowVideo) {
+        this._shadowVideo.src = '';
+        this._shadowVideo.remove();
+      }
     }
 
     _build() {
@@ -488,6 +544,10 @@ video-player * { box-sizing: border-box; }
     }
 
     _buildUI() {
+      const label = el('div', 'ws-label', 'websim.mp4');
+      this._skin.appendChild(label);
+      this._label = label;
+
       // big play overlay
       const bigWrap = el('div', 'ws-big-play-wrap');
       const bigBtn = el('button', 'ws-overlay-btn', '');
@@ -517,12 +577,20 @@ video-player * { box-sizing: border-box; }
       const handle = el('div', 'ws-progress-handle');
       const tooltip = el('div', 'ws-progress-tooltip', '0:00');
       track.append(buffered, played, handle);
-      progressRow.append(track, tooltip);
+      const preview = el('div', 'ws-preview');
+      const previewCanvas = document.createElement('canvas');
+      previewCanvas.width = 160;
+      previewCanvas.height = 90;
+      const previewTime = el('div', 'ws-preview-time', '0:00');
+      preview.append(previewCanvas, previewTime);
+      progressRow.append(track, preview, tooltip);
       controls.appendChild(progressRow);
       Object.assign(this, {
         _progressRow: progressRow, _buffered: buffered, _played: played,
         _handle: handle, _tooltip: tooltip,
+        _preview: preview, _previewCanvas: previewCanvas, _previewTime: previewTime,
       });
+      this._initPreview();
 
       // button bar
       const bar = el('div', 'ws-bar');
@@ -621,6 +689,83 @@ video-player * { box-sizing: border-box; }
       v.addEventListener('error', () => this.setAttribute('data-waiting', 'false'));
     }
 
+    // ---------------------------------------------------------------
+    // Hover preview thumbnail (YouTube-style).
+    // Uses a second, hidden <video> pointed at the same source, seeked
+    // silently in the background and drawn onto a canvas. No sprite
+    // sheet or server support required — works with any playable src.
+    // ---------------------------------------------------------------
+    _initPreview() {
+      const setup = () => {
+        if (this._shadowVideo) return; // already set up
+        const src = this._video.currentSrc || this._video.src;
+        if (!src) return;
+        const shadow = document.createElement('video');
+        shadow.src = src;
+        shadow.muted = true;
+        shadow.preload = 'auto';
+        shadow.crossOrigin = this._video.crossOrigin || 'anonymous';
+        shadow.style.position = 'absolute';
+        shadow.style.width = '1px';
+        shadow.style.height = '1px';
+        shadow.style.opacity = '0';
+        shadow.style.pointerEvents = 'none';
+        shadow.tabIndex = -1;
+        shadow.setAttribute('aria-hidden', 'true');
+        this._skin.appendChild(shadow);
+        this._shadowVideo = shadow;
+        this._previewReady = false;
+        this._previewSeeking = false;
+        this._previewQueued = null;
+        shadow.addEventListener('loadeddata', () => { this._previewReady = true; });
+        shadow.addEventListener('seeked', () => {
+          this._previewSeeking = false;
+          this._drawPreviewFrame();
+          if (this._previewQueued !== null) {
+            const t = this._previewQueued;
+            this._previewQueued = null;
+            this._seekPreview(t);
+          }
+        });
+        shadow.addEventListener('error', () => { this._previewReady = false; });
+      };
+      if (this._video.currentSrc || this._video.src) setup();
+      else this._video.addEventListener('loadedmetadata', setup, { once: true });
+    }
+
+    _seekPreview(t) {
+      const shadow = this._shadowVideo;
+      if (!shadow || !this._previewReady) return;
+      if (this._previewSeeking) {
+        this._previewQueued = t;
+        return;
+      }
+      const clamped = Math.min(Math.max(t, 0), (shadow.duration || this._video.duration || t) - 0.05);
+      if (Math.abs(shadow.currentTime - clamped) < 0.2) return; // close enough, skip redundant seek
+      this._previewSeeking = true;
+      shadow.currentTime = clamped;
+    }
+
+    _drawPreviewFrame() {
+      const shadow = this._shadowVideo;
+      const canvas = this._previewCanvas;
+      if (!shadow || !canvas) return;
+      const ctx = canvas.getContext('2d');
+      try {
+        ctx.drawImage(shadow, 0, 0, canvas.width, canvas.height);
+      } catch (err) { /* frame not ready / cross-origin without CORS headers — skip silently */ }
+    }
+
+    _updatePreview(ratio) {
+      const v = this._video;
+      if (!v.duration || !this._preview) return;
+      const t = ratio * v.duration;
+      this._previewTime.textContent = fmtTime(t);
+      const clampPx = Math.max(84, Math.min(this._progressRow.clientWidth - 84, ratio * this._progressRow.clientWidth));
+      this._preview.style.left = clampPx + 'px';
+      this._seekPreview(t);
+    }
+
     _bindUIEvents() {
       const v = this._video;
       const toggle = () => (v.paused ? v.play() : v.pause());
@@ -657,10 +802,14 @@ video-player * { box-sizing: border-box; }
         this._handle.style.left = ratio * 100 + '%';
         this._tooltip.style.left = ratio * 100 + '%';
         this._tooltip.textContent = fmtTime(ratio * (v.duration || 0));
+        this._updatePreview(ratio);
       };
       this._progressRow.addEventListener('mousemove', (e) => {
         if (!v.duration || this._scrubbing) return;
-        this._applyScrubUI(this._seekFromEvent(e));
+        const ratio = this._seekFromEvent(e);
+        this._tooltip.style.left = ratio * 100 + '%';
+        this._tooltip.textContent = fmtTime(ratio * v.duration);
+        this._updatePreview(ratio);
         // restore the played bar to the real position after just previewing
         const real = v.currentTime / v.duration;
         this._played.style.width = real * 100 + '%';
@@ -798,7 +947,7 @@ video-player * { box-sizing: border-box; }
         if (!this._video.paused) this._scheduleHide(200);
       });
       // Touch devices never fire mousemove/mouseenter, so without this the
-      // controls would stay on screen forever once shown.
+      // controls (and the label) would stay on screen forever once shown.
       // A tap anywhere on the player reveals controls and re-arms the
       // auto-hide timer, same as a mouse move would.
       this.addEventListener('touchstart', show, { passive: true });
