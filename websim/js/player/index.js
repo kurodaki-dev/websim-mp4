@@ -1,5 +1,5 @@
 /*!
- * websim.mp3 — a single-file, dependency-free video player
+ * websim.mp4 — a single-file, dependency-free video player
  * Built to be dropped in as a near-identical replacement for the
  * <video-player><video-skin><video></video-skin></video-player> markup style.
  *
@@ -12,6 +12,18 @@
  *     </video-skin>
  *   </video-player>
  *
+ * Customizing colors (optional — sensible defaults if you skip this):
+ *   <video-player
+ *     data-accent="#7c3aed"
+ *     data-accent-text="#ffffff"
+ *     data-progress-bg="rgba(255,255,255,0.25)"
+ *     data-controls-bg="rgba(0,0,0,0.85)">
+ *     ...
+ *   </video-player>
+ *
+ * Or via plain CSS, since everything reads from custom properties:
+ *   video-player { --ws-accent: #7c3aed; }
+ *
  * No other files, no CSS link, no build step. Everything (styles, icons,
  * controls, keyboard shortcuts, big play button, scrubber, volume, time,
  * fullscreen, PiP, playback rate, settings menu) lives in this one script.
@@ -19,7 +31,7 @@
 (() => {
   'use strict';
 
-  const NS = 'websim-mp3';
+  const NS = 'websim-mp4';
   if (customElements.get('video-player')) return; // idempotent
 
   // ---------------------------------------------------------------------
@@ -40,7 +52,8 @@
   };
 
   // ---------------------------------------------------------------------
-  // Styles — injected once, scoped by data attribute + shadow-less BEM
+  // Styles — injected once. Colors are driven by CSS custom properties so
+  // each <video-player> instance can override them independently.
   // ---------------------------------------------------------------------
   const STYLE_ID = `${NS}-styles`;
   function injectStyles() {
@@ -49,6 +62,17 @@
     style.id = STYLE_ID;
     style.textContent = `
 video-player {
+  --ws-accent: #e50914;
+  --ws-accent-text: #ffffff;
+  --ws-progress-bg: rgba(255,255,255,0.25);
+  --ws-buffered-bg: rgba(255,255,255,0.4);
+  --ws-controls-bg-top: rgba(0,0,0,0.85);
+  --ws-controls-bg-mid: rgba(0,0,0,0.55);
+  --ws-big-play-bg: rgba(20,20,22,0.72);
+  --ws-big-play-border: rgba(255,255,255,0.85);
+  --ws-menu-bg: rgba(24,24,27,0.96);
+  --ws-text: #ffffff;
+
   display: block;
   position: relative;
   width: 100%;
@@ -102,8 +126,8 @@ video-skin > video {
   width: 68px;
   height: 68px;
   border-radius: 50%;
-  background: rgba(20, 20, 22, 0.72);
-  border: 2px solid rgba(255,255,255,0.85);
+  background: var(--ws-big-play-bg);
+  border: 2px solid var(--ws-big-play-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -112,12 +136,12 @@ video-skin > video {
 }
 .ws-overlay-btn:hover .ws-big-play {
   transform: scale(1.08);
-  background: rgba(229, 9, 20, 0.85);
+  background: var(--ws-accent);
 }
 .ws-big-play svg {
   width: 30px;
   height: 30px;
-  fill: #fff;
+  fill: var(--ws-text);
   margin-left: 4px;
 }
 video-player[data-playing="true"] .ws-big-play-wrap {
@@ -144,22 +168,39 @@ video-player[data-waiting="true"] .ws-spinner { display: flex; }
   height: 44px;
   border-radius: 50%;
   border: 3px solid rgba(255,255,255,0.25);
-  border-top-color: #fff;
+  border-top-color: var(--ws-text);
   animation: ws-spin .8s linear infinite;
 }
 @keyframes ws-spin { to { transform: rotate(360deg); } }
 
+/* Everything that should fade together while playing: the control bar
+   AND the websim.mp4 label share the same visibility state. */
 .ws-controls {
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  padding: 28px 10px 8px;
-  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0) 100%);
+  padding: 30px 10px 8px;
+  background: linear-gradient(to top, var(--ws-controls-bg-top) 0%, var(--ws-controls-bg-mid) 45%, rgba(0,0,0,0) 100%);
   opacity: 1;
   transform: translateY(0);
   transition: opacity .25s ease, transform .25s ease;
   z-index: 3;
 }
-video-player[data-controls-hidden="true"] .ws-controls {
+.ws-label {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: rgba(255,255,255,0.9);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity .25s ease, transform .25s ease;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+video-player[data-controls-hidden="true"] .ws-controls,
+video-player[data-controls-hidden="true"] .ws-label {
   opacity: 0;
   transform: translateY(4px);
   pointer-events: none;
@@ -170,33 +211,36 @@ video-player[data-controls-hidden="true"] {
 
 .ws-progress-row {
   position: relative;
-  height: 14px;
+  height: 16px;
   margin: 0 6px 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
+  touch-action: none;
 }
 .ws-progress-track {
   position: relative;
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255,255,255,0.25);
+  background: var(--ws-progress-bg);
   transition: height .12s ease;
+  pointer-events: none;
 }
-.ws-progress-row:hover .ws-progress-track { height: 6px; }
+.ws-progress-row:hover .ws-progress-track,
+.ws-progress-row.ws-scrubbing .ws-progress-track { height: 6px; }
 .ws-progress-buffered {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 0%;
-  background: rgba(255,255,255,0.4);
+  background: var(--ws-buffered-bg);
   border-radius: 2px;
 }
 .ws-progress-played {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 0%;
-  background: #e50914;
+  background: var(--ws-accent);
   border-radius: 2px;
 }
 .ws-progress-handle {
@@ -205,10 +249,11 @@ video-player[data-controls-hidden="true"] {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #e50914;
+  background: var(--ws-accent);
   transform: translate(-50%, -50%) scale(0);
   transition: transform .12s ease;
   left: 0%;
+  pointer-events: none;
 }
 .ws-progress-row:hover .ws-progress-handle,
 .ws-progress-row.ws-scrubbing .ws-progress-handle {
@@ -216,10 +261,10 @@ video-player[data-controls-hidden="true"] {
 }
 .ws-progress-tooltip {
   position: absolute;
-  bottom: 16px;
+  bottom: 18px;
   transform: translateX(-50%);
   background: rgba(20,20,22,0.95);
-  color: #fff;
+  color: var(--ws-text);
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 3px;
@@ -228,7 +273,8 @@ video-player[data-controls-hidden="true"] {
   pointer-events: none;
   transition: opacity .1s ease;
 }
-.ws-progress-row:hover .ws-progress-tooltip { opacity: 1; }
+.ws-progress-row:hover .ws-progress-tooltip,
+.ws-progress-row.ws-scrubbing .ws-progress-tooltip { opacity: 1; }
 
 .ws-bar {
   display: flex;
@@ -242,7 +288,7 @@ video-player[data-controls-hidden="true"] {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #fff;
+  color: var(--ws-text);
   cursor: pointer;
   width: 36px;
   height: 36px;
@@ -257,12 +303,12 @@ video-player[data-controls-hidden="true"] {
 .ws-btn:hover { opacity: 1; background: rgba(255,255,255,0.12); }
 .ws-btn svg { width: 20px; height: 20px; fill: currentColor; }
 .ws-btn:focus-visible, .ws-progress-row:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--ws-text);
   outline-offset: 2px;
 }
 
 .ws-time {
-  color: #fff;
+  color: var(--ws-text);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
@@ -290,7 +336,7 @@ video-player[data-controls-hidden="true"] {
   width: 56px;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255,255,255,0.25);
+  background: var(--ws-progress-bg);
   margin-right: 8px;
   cursor: pointer;
 }
@@ -298,7 +344,7 @@ video-player[data-controls-hidden="true"] {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 100%;
-  background: #fff;
+  background: var(--ws-text);
   border-radius: 2px;
 }
 
@@ -306,7 +352,7 @@ video-player[data-controls-hidden="true"] {
   position: absolute;
   right: 8px;
   bottom: 46px;
-  background: rgba(24,24,27,0.96);
+  background: var(--ws-menu-bg);
   border-radius: 6px;
   padding: 6px 0;
   min-width: 150px;
@@ -330,7 +376,7 @@ video-player[data-controls-hidden="true"] {
   white-space: nowrap;
 }
 .ws-menu-item:hover { background: rgba(255,255,255,0.1); }
-.ws-menu-item svg { width: 14px; height: 14px; fill: #e50914; visibility: hidden; }
+.ws-menu-item svg { width: 14px; height: 14px; fill: var(--ws-accent); visibility: hidden; }
 .ws-menu-item[data-active="true"] svg { visibility: visible; }
 .ws-menu-header {
   padding: 6px 14px;
@@ -338,18 +384,6 @@ video-player[data-controls-hidden="true"] {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: .04em;
-}
-
-.ws-label {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  color: rgba(255,255,255,0.55);
-  font-size: 10.5px;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  z-index: 2;
-  pointer-events: none;
 }
 
 video-player * { box-sizing: border-box; }
@@ -377,6 +411,27 @@ video-player * { box-sizing: border-box; }
     return e;
   }
 
+  // Maps data-* attributes on <video-player> to CSS custom properties,
+  // so colors can be customized straight from the markup with no CSS file.
+  const COLOR_ATTR_MAP = {
+    'data-accent': '--ws-accent',
+    'data-accent-text': '--ws-accent-text',
+    'data-text': '--ws-text',
+    'data-progress-bg': '--ws-progress-bg',
+    'data-buffered-bg': '--ws-buffered-bg',
+    'data-controls-bg': '--ws-controls-bg-top',
+    'data-controls-bg-mid': '--ws-controls-bg-mid',
+    'data-big-play-bg': '--ws-big-play-bg',
+    'data-big-play-border': '--ws-big-play-border',
+    'data-menu-bg': '--ws-menu-bg',
+  };
+  function applyColorAttrs(node) {
+    for (const [attr, cssVar] of Object.entries(COLOR_ATTR_MAP)) {
+      const val = node.getAttribute(attr);
+      if (val) node.style.setProperty(cssVar, val);
+    }
+  }
+
   // ---------------------------------------------------------------------
   // <video-skin> — a thin wrapper, mostly just a styling hook (like video.js)
   // ---------------------------------------------------------------------
@@ -392,19 +447,39 @@ video-player * { box-sizing: border-box; }
       this._hideTimer = null;
       this._scrubbing = false;
       this._rate = 1;
+      this._volDragging = false;
+      // Bound handlers kept as instance refs so window listeners can be removed on disconnect.
+      this._onWinMouseMove = (e) => {
+        if (this._scrubbing) this._moveScrub(e);
+        if (this._volDragging) this._applyVol(e);
+      };
+      this._onWinMouseUp = (e) => {
+        if (this._scrubbing) this._endScrub(e);
+        this._volDragging = false;
+      };
+      this._onDocClick = () => this._rateMenu && this._rateMenu.classList.remove('ws-open');
     }
 
     connectedCallback() {
       injectStyles();
-      // Defer to next microtask so light-DOM children (video-skin/video) are parsed.
+      applyColorAttrs(this);
       if (this._built) return;
       this._built = true;
-      // If the <video> isn't parsed yet (script executed mid-parse), wait a tick.
       if (!this.querySelector('video')) {
         requestAnimationFrame(() => this._build());
       } else {
         this._build();
       }
+      window.addEventListener('mousemove', this._onWinMouseMove);
+      window.addEventListener('mouseup', this._onWinMouseUp);
+      document.addEventListener('click', this._onDocClick);
+    }
+
+    disconnectedCallback() {
+      window.removeEventListener('mousemove', this._onWinMouseMove);
+      window.removeEventListener('mouseup', this._onWinMouseUp);
+      document.removeEventListener('click', this._onDocClick);
+      this._clearHide();
     }
 
     _build() {
@@ -432,6 +507,7 @@ video-player * { box-sizing: border-box; }
     _buildUI() {
       const label = el('div', 'ws-label', 'websim.mp4');
       this._skin.appendChild(label);
+      this._label = label;
 
       // big play overlay
       const bigWrap = el('div', 'ws-big-play-wrap');
@@ -477,7 +553,7 @@ video-player * { box-sizing: border-box; }
       this._playBtn = playBtn;
 
       const replayBtn = el('button', 'ws-btn', ICONS.replay);
-      replayBtn.setAttribute('aria-label', 'Replay 10 seconds');
+      replayBtn.setAttribute('aria-label', 'Replay');
       replayBtn.style.display = 'none';
       this._replayBtn = replayBtn;
 
@@ -504,23 +580,23 @@ video-player * { box-sizing: border-box; }
       rateBtn.setAttribute('aria-label', 'Playback speed');
       this._rateBtn = rateBtn;
 
-      const settingsBtn = el('button', 'ws-btn', ICONS.settings);
-      settingsBtn.setAttribute('aria-label', 'Settings');
-
       const pipBtn = el('button', 'ws-btn', ICONS.pip);
       pipBtn.setAttribute('aria-label', 'Picture in picture');
-      if (!('pictureInPictureEnabled' in document)) pipBtn.style.display = 'none';
+      if (!('pictureInPictureEnabled' in document) || video.disablePictureInPicture) {
+        pipBtn.style.display = 'none';
+      }
 
       const fsBtn = el('button', 'ws-btn', ICONS.fsEnter);
       fsBtn.setAttribute('aria-label', 'Fullscreen');
       this._fsBtn = fsBtn;
+      if (!document.fullscreenEnabled) fsBtn.style.display = 'none';
 
-      bar.append(playBtn, replayBtn, volWrap, time, spacer, rateBtn, settingsBtn, pipBtn, fsBtn);
+      bar.append(playBtn, replayBtn, volWrap, time, spacer, rateBtn, pipBtn, fsBtn);
       controls.appendChild(bar);
       this._skin.appendChild(controls);
       this._controls = controls;
 
-      // rate menu
+      // rate menu (single settings/speed menu — no duplicate button)
       const rateMenu = el('div', 'ws-menu');
       rateMenu.appendChild(el('div', 'ws-menu-header', 'Speed'));
       [0.5, 0.75, 1, 1.25, 1.5, 2].forEach((r) => {
@@ -533,7 +609,6 @@ video-player * { box-sizing: border-box; }
       this._skin.appendChild(rateMenu);
       this._rateMenu = rateMenu;
 
-      this._settingsBtn = settingsBtn;
       this._pipBtn = pipBtn;
     }
 
@@ -564,6 +639,7 @@ video-player * { box-sizing: border-box; }
         this.setAttribute('data-controls-hidden', 'false');
         this._replayBtn.style.display = '';
       });
+      v.addEventListener('error', () => this.setAttribute('data-waiting', 'false'));
     }
 
     _bindUIEvents() {
@@ -583,47 +659,35 @@ video-player * { box-sizing: border-box; }
         v.play();
       });
 
-      // progress scrubbing
-      const seekFromEvent = (e) => {
+      // --- Progress scrubbing -------------------------------------
+      // Bound as instance methods (not locals) so window-level mousemove/up
+      // (registered once in connectedCallback) can reach the same scrub
+      // state — this is what makes dragging past the row's edges, or
+      // releasing outside it, still work correctly.
+      this._seekFromEvent = (e) => {
         const rect = this._progressRow.getBoundingClientRect();
-        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-        return Math.min(1, Math.max(0, x / rect.width));
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const x = clientX - rect.left;
+        return Math.min(1, Math.max(0, rect.width ? x / rect.width : 0));
       };
-      const applyScrubUI = (ratio) => {
+      this._applyScrubUI = (ratio) => {
         this._played.style.width = ratio * 100 + '%';
         this._handle.style.left = ratio * 100 + '%';
         this._tooltip.style.left = ratio * 100 + '%';
         this._tooltip.textContent = fmtTime(ratio * (v.duration || 0));
       };
       this._progressRow.addEventListener('mousemove', (e) => {
-        if (!v.duration) return;
-        const ratio = seekFromEvent(e);
-        this._tooltip.style.left = ratio * 100 + '%';
-        this._tooltip.textContent = fmtTime(ratio * v.duration);
-        if (this._scrubbing) applyScrubUI(ratio);
+        if (!v.duration || this._scrubbing) return;
+        this._applyScrubUI(this._seekFromEvent(e));
+        // restore the played bar to the real position after just previewing
+        const real = v.currentTime / v.duration;
+        this._played.style.width = real * 100 + '%';
+        this._handle.style.left = real * 100 + '%';
       });
-      const startScrub = (e) => {
-        if (!v.duration) return;
-        this._scrubbing = true;
-        this._progressRow.classList.add('ws-scrubbing');
-        applyScrubUI(seekFromEvent(e));
-      };
-      const moveScrub = (e) => {
-        if (!this._scrubbing) return;
-        applyScrubUI(seekFromEvent(e));
-      };
-      const endScrub = (e) => {
-        if (!this._scrubbing) return;
-        this._scrubbing = false;
-        this._progressRow.classList.remove('ws-scrubbing');
-        v.currentTime = seekFromEvent(e) * v.duration;
-      };
-      this._progressRow.addEventListener('mousedown', startScrub);
-      window.addEventListener('mousemove', moveScrub);
-      window.addEventListener('mouseup', endScrub);
-      this._progressRow.addEventListener('touchstart', startScrub, { passive: true });
-      this._progressRow.addEventListener('touchmove', moveScrub, { passive: true });
-      this._progressRow.addEventListener('touchend', endScrub);
+      this._progressRow.addEventListener('mousedown', (e) => this._startScrub(e));
+      this._progressRow.addEventListener('touchstart', (e) => this._startScrub(e), { passive: true });
+      this._progressRow.addEventListener('touchmove', (e) => this._moveScrub(e), { passive: true });
+      this._progressRow.addEventListener('touchend', (e) => this._endScrub(e));
       this._progressRow.addEventListener('keydown', (e) => {
         if (!v.duration) return;
         if (e.key === 'ArrowRight') v.currentTime = Math.min(v.duration, v.currentTime + 5);
@@ -635,30 +699,27 @@ video-player * { box-sizing: border-box; }
         v.muted = !v.muted;
         if (!v.muted && v.volume === 0) v.volume = 0.5;
       });
-      let volDragging = false;
-      const applyVol = (e) => {
+      this._applyVol = (e) => {
         const rect = this._volTrack.getBoundingClientRect();
-        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-        const ratio = Math.min(1, Math.max(0, x / rect.width));
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const x = clientX - rect.left;
+        const ratio = Math.min(1, Math.max(0, rect.width ? x / rect.width : 0));
         v.volume = ratio;
         v.muted = ratio === 0;
       };
-      this._volTrack.addEventListener('mousedown', (e) => { volDragging = true; applyVol(e); });
-      window.addEventListener('mousemove', (e) => { if (volDragging) applyVol(e); });
-      window.addEventListener('mouseup', () => (volDragging = false));
+      this._volTrack.addEventListener('mousedown', (e) => { this._volDragging = true; this._applyVol(e); });
+      this._volTrack.addEventListener('touchstart', (e) => { this._applyVol(e); }, { passive: true });
+      this._volTrack.addEventListener('touchmove', (e) => { this._applyVol(e); }, { passive: true });
       this._volWrap.addEventListener('mouseenter', () => this._volWrap.classList.add('ws-vol-active'));
       this._volWrap.addEventListener('mouseleave', () => this._volWrap.classList.remove('ws-vol-active'));
 
-      // rate menu
+      // rate/settings menu (single button, single menu)
       this._rateBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this._rateMenu.classList.toggle('ws-open');
       });
-      this._settingsBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this._rateMenu.classList.toggle('ws-open');
-      });
       this._rateMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
         const item = e.target.closest('.ws-menu-item');
         if (!item) return;
         const rate = parseFloat(item.dataset.rate);
@@ -670,7 +731,6 @@ video-player * { box-sizing: border-box; }
         });
         this._rateMenu.classList.remove('ws-open');
       });
-      document.addEventListener('click', () => this._rateMenu.classList.remove('ws-open'));
 
       // pip
       this._pipBtn.addEventListener('click', async () => {
@@ -687,6 +747,25 @@ video-player * { box-sizing: border-box; }
         this.setAttribute('data-fullscreen', String(isFs));
         this._fsBtn.innerHTML = isFs ? ICONS.fsExit : ICONS.fsEnter;
       });
+    }
+
+    _startScrub(e) {
+      const v = this._video;
+      if (!v.duration) return;
+      this._scrubbing = true;
+      this._progressRow.classList.add('ws-scrubbing');
+      this._applyScrubUI(this._seekFromEvent(e));
+    }
+    _moveScrub(e) {
+      if (!this._scrubbing) return;
+      this._applyScrubUI(this._seekFromEvent(e));
+    }
+    _endScrub(e) {
+      if (!this._scrubbing) return;
+      this._scrubbing = false;
+      this._progressRow.classList.remove('ws-scrubbing');
+      const v = this._video;
+      if (v.duration) v.currentTime = this._seekFromEvent(e) * v.duration;
     }
 
     _bindKeyboard() {
@@ -738,7 +817,7 @@ video-player * { box-sizing: border-box; }
     _scheduleHide(delay = 2600) {
       this._clearHide();
       this._hideTimer = setTimeout(() => {
-        if (!this._video.paused && !this._scrubbing) {
+        if (!this._video.paused && !this._scrubbing && !this._rateMenu.classList.contains('ws-open')) {
           this.setAttribute('data-controls-hidden', 'true');
         }
       }, delay);
