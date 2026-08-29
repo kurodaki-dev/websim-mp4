@@ -340,18 +340,6 @@ video-player[data-controls-hidden="true"] {
   letter-spacing: .04em;
 }
 
-.ws-label {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  color: rgba(255,255,255,0.55);
-  font-size: 10.5px;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  z-index: 2;
-  pointer-events: none;
-}
-
 video-player * { box-sizing: border-box; }
 `;
     document.head.appendChild(style);
@@ -430,9 +418,6 @@ video-player * { box-sizing: border-box; }
     }
 
     _buildUI() {
-      const label = el('div', 'ws-label', 'websim.mp4');
-      this._skin.appendChild(label);
-
       // big play overlay
       const bigWrap = el('div', 'ws-big-play-wrap');
       const bigBtn = el('button', 'ws-overlay-btn', '');
